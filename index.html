@@ -156,7 +156,7 @@ details p{color:var(--muted);font-size:.95rem}
 <header class="top" id="top">
   <div class="wrap">
     <div class="row">
-      <div class="brand">Treino do TCC<small>SAE em Cuidados Paliativos na Oncologia · slides 1 a 6</small></div>
+      <div class="brand">Treino do TCC<small>SAE em Cuidados Paliativos na Oncologia · slides 1 a 6 · versão 8</small></div>
       <button class="iconbtn" id="fontBtn" type="button" aria-label="Mudar tamanho da letra">Aa</button>
     </div>
     <div class="seg" id="modes">
@@ -437,10 +437,16 @@ function onFinal(text){
 
 /* ---------- Erros e voltar ---------- */
 let errCount = {}, fbTimer = 0;
+let lastErr = {s:-1, at:0, key:""};
 function markError(text, s, wrong){
   const exp0 = wrong[0].exp;
   s = W[exp0].s;
-  errCount[s] = (errCount[s] || 0) + 1;
+  const key = s + ":" + wrong.map(x => x.w).join(" ");
+  if(key === lastErr.key) return;
+  const fresh = !(s === lastErr.s && now() - lastErr.at < 8000);
+  lastErr = {s, at:now(), key};
+  if(fresh) errCount[s] = (errCount[s] || 0) + 1;
+  else errCount[s] = errCount[s] || 1;
   const el = SENT[s].el;
   el.classList.remove("err"); void el.offsetWidth; el.classList.add("err", "had-err");
   setTimeout(() => el.classList.remove("err"), 1600);
@@ -496,6 +502,8 @@ $("rwSame").addEventListener("click", () => rewind(false));
 $("rwPrev").addEventListener("click", () => rewind(true));
 function onInterim(text){
   const t = advance(P, norm(text), false);
+  const liveWrong = aWrong.filter(x => x.w.length >= 4 || /^\d/.test(x.w));
+  if(liveWrong.length >= 2) markError(text, 0, liveWrong);
   if(t !== tentP){ if(t > tentP) lastMove = now(); tentP = t; render(); }
 }
 function jumpTo(i){
