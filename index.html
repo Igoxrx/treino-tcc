@@ -96,8 +96,9 @@ main{padding-block:18px 300px}
 .hint div{background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 14px;font-size:calc(var(--fs) * .9)}
 .hint small,.fb small{display:block;font-size:.72rem;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
 .fb{padding-top:10px}
-.fb > div{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:8px 12px;font-size:.9rem}
-.fb .t{font-weight:700;color:var(--warn);font-size:.85rem}
+.fb{padding-top:6px}
+.fb > div{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;padding:5px 10px;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fb .t{color:var(--warn)}
 .fb .said{color:var(--muted);font-size:.9rem;margin-top:2px}
 .fb .right{font-size:calc(var(--fs) * .9);margin-top:4px}
 .fb .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
@@ -163,7 +164,7 @@ details p{color:var(--muted);font-size:.95rem}
 <header class="top" id="top">
   <div class="wrap">
     <div class="row">
-      <div class="brand">Treino do TCC<small>SAE em Cuidados Paliativos na Oncologia · slides 1 a 6 · versão 10</small></div>
+      <div class="brand">Treino do TCC<small>SAE em Cuidados Paliativos na Oncologia · slides 1 a 6 · versão 11</small></div>
       <button class="iconbtn" id="fontBtn" type="button" aria-label="Mudar tamanho da letra">Aa</button>
     </div>
     <div class="seg" id="modes">
@@ -477,30 +478,17 @@ function markError(text, s, wrong){
   const many = errCount[s] >= 3;
   const fb = $("fb"); fb.textContent = "";
   const box = document.createElement("div");
-  const t = document.createElement("div"); t.className = "t";
-  t.textContent = many ? `Este parágrafo está difícil (${errCount[s]} tropeços)` : "Confira esta parte";
-  const sd = document.createElement("div"); sd.className = "said";
-  sd.append("Você disse: ");
-  const bad = new Set(wrong.map(x => x.w));
-  text.trim().split(/\s+/).slice(-14).forEach(tok => {
-    const isBad = bad.has(norm(tok)[0]);
-    const e = document.createElement(isBad ? "b" : "span"); e.textContent = tok + " ";
-    if(isBad) e.className = "badw"; sd.appendChild(e);
-  });
-  const rt = document.createElement("div"); rt.className = "right";
-  const sm = document.createElement("small"); sm.textContent = "No roteiro está";
-  rt.append(sm, document.createTextNode((from > 0 ? "… " : "") + ws.slice(from, from + 10).join(" ") + (ws.length > from + 10 ? " …" : "")));
-  box.append(t, sd, rt);
+  const t = document.createElement("b"); t.className = "t";
   if(many){
-    const b = document.createElement("div"); b.className = "btns";
-    const b1 = document.createElement("button"); b1.type = "button"; b1.textContent = "↺ Recomeçar o parágrafo"; b1.onclick = () => rewind(false);
-    const b2 = document.createElement("button"); b2.type = "button"; b2.textContent = "⤺ Voltar ao anterior"; b2.onclick = () => rewind(true);
-    const b3 = document.createElement("button"); b3.type = "button"; b3.className = "alt"; b3.textContent = "Seguir"; b3.onclick = hideFb;
-    b.append(b1, b2, b3); box.appendChild(b);
+    t.textContent = "Parágrafo difícil. ";
+    box.append(t, "Se quiser, toque em ↺ para recomeçar.");
+  } else {
+    t.textContent = "Confira: ";
+    box.append(t, "“" + ws.slice(pos, pos + 6).join(" ") + (ws.length > pos + 6 ? "…" : "") + "”");
   }
   fb.appendChild(box); fb.hidden = false;
   clearTimeout(fbTimer);
-  fbTimer = setTimeout(hideFb, many ? 9000 : 4000);
+  fbTimer = setTimeout(hideFb, many ? 6000 : 3500);
 }
 function hideFb(){ clearTimeout(fbTimer); $("fb").hidden = true; }
 function rewind(toPrev){
@@ -553,10 +541,23 @@ function render(){
   $("lvNum").textContent = sec.n || "→";
   $("lvTtl").textContent = sec.t;
   [...$("lvPips").children].forEach((p, i) => p.classList.toggle("on", i <= cur.sl));
-  if(cur.s !== lastSentShown){
-    lastSentShown = cur.s;
-    const target = mode === "texto" ? SENT[cur.s].el : mode === "chaves" ? sec.card : null;
-    if(target && everStarted) target.scrollIntoView({block:"center", behavior:"smooth"});
+  const forced = lastSentShown === -1;
+  lastSentShown = cur.s;
+  if(everStarted){
+    if(mode === "texto" && (pos !== lastWordShown || forced)){ lastWordShown = pos; keepInView(cur.el, forced); }
+    else if(mode === "chaves" && (cur.sl !== lastCardShown || forced)){ lastCardShown = cur.sl; keepInView(sec.card, true, 0.02); }
+  }
+}
+/* Mantém a palavra atual na parte de cima da área de leitura (entre a barra de cima e a de baixo).
+   Só rola quando ela sai dessa faixa, para a tela não ficar pulando. */
+let lastWordShown = -1, lastCardShown = -1;
+function keepInView(el, force, frac = 0.22){
+  const top = $("top").getBoundingClientRect().bottom;
+  const bottom = document.querySelector(".dock").getBoundingClientRect().top;
+  const h = Math.max(120, bottom - top);
+  const r = el.getBoundingClientRect();
+  if(force || r.top < top + 8 || r.bottom > top + h * 0.6){
+    window.scrollBy({top: r.top - (top + h * frac), behavior: "smooth"});
   }
 }
 function tick(){
