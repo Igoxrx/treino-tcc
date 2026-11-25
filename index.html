@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Treino do TCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:wght@600;700&display=swap">
+<style>
+/* Layout: barra fixa em cima (modo + tempo), roteiro no meio, botão do microfone fixo embaixo */
+:root{
+  --bg:#f4f7f6; --surface:#ffffff; --ink:#17302c; --muted:#5b706b; --line:#d6e2df;
+  --accent:#0d7a6f; --accent-ink:#ffffff; --said:#9fb4af; --cur:#e0f1ec; --warn:#b4541a; --ok:#2c7a3a;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-head:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;
+  --fs:1.3rem;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e1918; --surface:#152422; --ink:#e5efec; --muted:#93a8a3; --line:#26403b;
+  --accent:#4cc2b1; --accent-ink:#06201c; --said:#5a716c; --cur:#1c3a35; --warn:#f0a36b; --ok:#7cca8c;
+  color-scheme:dark;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+
+/* topo */
+.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+.top .wrap{display:flex;flex-direction:column;gap:10px;padding-block:10px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand{font-family:var(--f-head);font-weight:700;font-size:1.15rem;letter-spacing:-.01em;flex:1;min-width:0}
+.brand small{display:block;font-family:var(--f-body);font-weight:400;font-size:.78rem;color:var(--muted);letter-spacing:0}
+.seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px;width:100%}
+.seg button{flex:1;border:0;background:transparent;padding:8px 6px;border-radius:9px;font-size:.9rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;font-size:.9rem}
+.stats{display:flex;gap:14px;font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.stats b{color:var(--ink);font-weight:700}
+.stats .slide{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--said);margin-right:6px;vertical-align:middle}
+.listening .dot{background:#d33;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.3}}
+
+main{padding-block:18px 170px}
+
+/* aviso */
+.notice{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:18px}
+.notice h2{font-family:var(--f-head);font-size:1.1rem;margin:0 0 8px}
+.notice ol{margin:0;padding-left:1.2em;display:grid;gap:6px}
+.notice.bad{border-color:var(--warn)}
+.hist{margin-top:12px;font-size:.88rem;color:var(--muted)}
+.hist table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.hist td,.hist th{text-align:left;padding:4px 6px 4px 0;border-bottom:1px solid var(--line)}
+
+/* modo texto */
+.sec{margin-bottom:26px}
+.sec h2,.card h3{font-family:var(--f-head);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:0 0 8px}
+.sent{font-size:var(--fs);line-height:1.6;margin:0 0 .5em;padding:4px 8px;border-radius:8px;transition:background .25s}
+.sent.cur{background:var(--cur)}
+.sent.skip{box-shadow:inset 3px 0 0 var(--warn)}
+.sent .tag{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.sent span.said{color:var(--said)}
+.sent span.tent{color:var(--muted)}
+
+/* modo palavras-chave */
+.cards{display:grid;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;opacity:.55;transition:opacity .25s}
+.card.on{opacity:1;border-color:var(--accent)}
+.card.done{opacity:.4}
+.card ul{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:calc(var(--fs) * .92)}
+.bar{height:5px;border-radius:3px;background:var(--line);margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* modo livre */
+.free{text-align:center;padding-top:8vh}
+.free .num{font-family:var(--f-head);font-size:4rem;line-height:1;color:var(--accent)}
+.free .ttl{font-family:var(--f-head);font-size:1.6rem;margin:6px 0 20px}
+.free .clock{font-size:2.4rem;font-variant-numeric:tabular-nums}
+.free .pips{display:flex;justify-content:center;gap:8px;margin-top:20px}
+.free .pips i{width:12px;height:12px;border-radius:50%;background:var(--line)}
+.free .pips i.on{background:var(--accent)}
+.free p{color:var(--muted)}
+
+/* dica */
+.hint{position:fixed;left:0;right:0;bottom:calc(104px + env(safe-area-inset-bottom));z-index:6;display:flex;justify-content:center;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.hint div{max-width:700px;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 16px;font-size:var(--fs);box-shadow:0 6px 24px rgb(0 0 0 / .2)}
+.hint small{display:block;font-size:.75rem;opacity:.7;text-transform:uppercase;letter-spacing:.06em}
+
+/* barra de baixo */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.dock .wrap{display:flex;align-items:center;gap:10px;padding-block:12px}
+.dock select{flex:1;min-width:0;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:.9rem}
+.mic{flex:0 0 auto;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:1.05rem;padding:16px 22px;min-width:150px;box-shadow:0 4px 14px rgb(13 122 111 / .35)}
+.mic.on{background:#c62f2f;color:#fff;box-shadow:0 4px 14px rgb(198 47 47 / .35)}
+.mic:disabled{opacity:.4}
+.ghost{flex:0 0 auto;border:1px solid var(--line);background:transparent;border-radius:999px;padding:14px 16px;font-weight:700}
+
+/* resultado */
+.result{position:fixed;inset:0;z-index:10;background:var(--bg);overflow-y:auto;padding-top:env(safe-area-inset-top);padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+.result h1{font-family:var(--f-head);font-size:1.7rem;margin:20px 0 4px;text-wrap:balance}
+.result .lead{color:var(--muted);margin:0 0 18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:22px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.tile b{display:block;font-family:var(--f-head);font-size:1.6rem;font-variant-numeric:tabular-nums}
+.tile span{font-size:.82rem;color:var(--muted)}
+.tile em{display:block;font-style:normal;font-size:.85rem;margin-top:4px}
+.result h2{font-family:var(--f-head);font-size:1.1rem;margin:24px 0 10px}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.checks li{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.checks li i{font-style:normal;font-weight:700;width:1.2em;flex:0 0 auto}
+.checks li.ok i{color:var(--ok)}
+.checks li.no i{color:var(--warn)}
+.skips{display:grid;gap:8px}
+.skips p{margin:0;background:var(--surface);border-left:3px solid var(--warn);border-radius:6px;padding:10px 12px}
+.skips p small{display:block;color:var(--muted);font-size:.78rem}
+.times{display:grid;gap:6px}
+.times div{display:grid;grid-template-columns:7.5em 1fr 3.5em;gap:10px;align-items:center;font-size:.9rem;font-variant-numeric:tabular-nums}
+.times .tb{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.times .tb i{display:block;height:100%;background:var(--accent)}
+details{margin-top:18px}
+details p{color:var(--muted);font-size:.95rem}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.actions .mic{min-width:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <div class="row">
+      <div class="brand">Treino do TCC<small>SAE em Cuidados Paliativos na Oncologia · slides 1 a 6</small></div>
+      <button class="iconbtn" id="fontBtn" type="button" aria-label="Mudar tamanho da letra">Aa</button>
+    </div>
+    <div class="seg" id="modes">
+      <button type="button" data-mode="texto" aria-pressed="true">Texto inteiro</button>
+      <button type="button" data-mode="chaves" aria-pressed="false">Palavras-chave</button>
+      <button type="button" data-mode="livre" aria-pressed="false">Sem cola</button>
+    </div>
+    <div class="stats">
+      <span class="slide"><span class="dot"></span><b id="stSlide">Slide 1</b></span>
+      <span>Tempo <b id="stTime">0:00</b></span>
+      <span>Ritmo <b id="stWpm">–</b></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="stage">
+  <div class="notice" id="intro">
+    <h2>Como treinar</h2>
+    <ol>
+      <li>Toque em <b>Começar</b> e permita o uso do microfone.</li>
+      <li>Fale a sua parte normalmente. O texto que você já falou fica cinza e a tela acompanha sozinha.</li>
+      <li>Se travar, espere uns segundos: aparece o começo da próxima frase lá embaixo.</li>
+      <li>Ao terminar, toque em <b>Terminar</b> para ver o que faltou, o tempo e o ritmo.</li>
+    </ol>
+    <p style="margin:10px 0 0;color:var(--muted);font-size:.9rem">Comece em <b>Texto inteiro</b>. Quando estiver segura, passe para <b>Palavras-chave</b> e depois para <b>Sem cola</b>. Se o app se perder, toque na frase em que você está.</p>
+    <div class="hist" id="hist"></div>
+  </div>
+  <div class="notice bad" id="unsupported" hidden>
+    <h2>Abra este link no Google Chrome</h2>
+    <p style="margin:0">Este navegador não consegue escutar a sua voz. No celular, copie o link e abra no aplicativo <b>Chrome</b>. Ele também precisa de internet.</p>
+  </div>
+  <section id="v-texto"></section>
+  <section id="v-chaves" class="cards" hidden></section>
+  <section id="v-livre" class="free" hidden></section>
+</main>
+
+<div class="hint" id="hint" hidden><div><small>Próxima frase</small><span id="hintText"></span></div></div>
+
+<footer class="dock">
+  <div class="wrap">
+    <select id="startSel" aria-label="Começar a partir de"></select>
+    <button class="ghost" id="endBtn" type="button" hidden>Terminar</button>
+    <button class="mic" id="micBtn" type="button">● Começar</button>
+  </div>
+</footer>
+
+<section class="result" id="result" hidden>
+  <div class="wrap" id="resultBody"></div>
+</section>
+
+<script>
+/* ---------- Roteiro ---------- */
+const SECS = [
+ {n:1, t:"Apresentação",
+  kw:["Boa noite a todos","Cumprimentar a banca e a orientadora","Adriana, Cristiane e Sabrina · Enfermagem · UNIPLAN","Tema: SAE em Cuidados Paliativos na Oncologia","Por quê: conforto, acolhimento, dignidade e qualidade de vida"],
+  s:["Boa noite a todos!",
+     "Inicialmente, gostaríamos de cumprimentar nossa banca examinadora e nossa orientadora.",
+     "Nós somos Adriana da Silva de Sousa, Cristiane de Jesus Silva dos Santos e Sabrina Kelly Mendes Rebouças, acadêmicas do curso de Bacharelado em Enfermagem da UNIPLAN.",
+     "Hoje vamos apresentar nosso Trabalho de Conclusão de Curso, com o tema: A Sistematização da Assistência de Enfermagem em Cuidados Paliativos na Oncologia.",
+     "Escolhemos esse tema por compreender a importância do enfermeiro no cuidado ao paciente oncológico, especialmente quando se encontra em cuidados paliativos, momento em que o conforto, o acolhimento, a dignidade e a qualidade de vida são fundamentais."]},
+ {n:2, t:"Introdução",
+  kw:["Câncer: problema de saúde pública","INCA: cerca de 781 mil casos novos por ano","Período de 2026 a 2028","Paliativos: necessidades físicas, emocionais, sociais e espirituais","SAE: organiza, planeja e acompanha","Cuidar da pessoa: história, necessidades e dignidade"],
+  s:["Para iniciar, precisamos compreender que o câncer representa um importante problema de saúde pública.",
+     "Segundo os dados apresentados pelo INCA, existe uma estimativa de aproximadamente 781 mil casos novos de câncer por ano no Brasil, considerando o período de 2026 a 2028.",
+     "Diante dessa realidade, os cuidados paliativos tornam-se muito importantes.",
+     "Eles não se limitam ao tratamento da doença, mas procuram atender o paciente de maneira integral, considerando suas necessidades físicas, emocionais, sociais e espirituais.",
+     "Nesse contexto, a Sistematização da Assistência de Enfermagem, conhecida como SAE, contribui para organizar o trabalho do enfermeiro, planejar os cuidados e acompanhar as necessidades do paciente.",
+     "Mais do que realizar procedimentos, é importante cuidar da pessoa, respeitando sua história, suas necessidades e sua dignidade."]},
+ {n:3, t:"Problema de pesquisa e justificativa",
+  kw:["Pergunta: quais os desafios do enfermeiro para aplicar a SAE nos paliativos oncológicos?","Dificuldades: sobrecarga, escassez de recursos, falta de capacitação, organização do trabalho","Por isso estudamos: assistência organizada e humanizada"],
+  s:["A partir desse contexto, surgiu nosso problema de pesquisa:",
+     "Quais são os principais desafios encontrados pelo enfermeiro para a aplicabilidade da SAE nos cuidados paliativos de pacientes oncológicos?",
+     "Essa pergunta é importante porque, na prática profissional, existem dificuldades que podem comprometer a organização da assistência.",
+     "Entre elas, destacamos a sobrecarga de trabalho, a escassez de recursos, a falta de capacitação profissional e as dificuldades relacionadas à organização do processo de trabalho.",
+     "Por isso, consideramos importante estudar esse assunto, buscando compreender os obstáculos enfrentados pelos profissionais e a importância de uma assistência organizada e humanizada."]},
+ {n:4, t:"Objetivos",
+  kw:["Geral: analisar os desafios para implementar a SAE","5 específicos:","1. Fundamentos da SAE e o Processo de Enfermagem","2. Fatores que dificultam","3. Atuação do enfermeiro","4. Humanização, continuidade e qualidade","5. Comunicação terapêutica e família"],
+  s:["Nosso objetivo geral foi analisar os desafios para a implementação da Sistematização da Assistência de Enfermagem no cuidado a pacientes oncológicos em cuidados paliativos.",
+     "Para alcançar esse objetivo, estabelecemos cinco objetivos específicos.",
+     "Primeiro, compreender os fundamentos da SAE e sua relação com o Processo de Enfermagem.",
+     "Segundo, identificar os fatores que dificultam sua implementação.",
+     "Terceiro, descrever a atuação do enfermeiro na aplicação do Processo de Enfermagem.",
+     "Quarto, analisar como a assistência sistematizada contribui para a humanização, a continuidade e a qualidade do cuidado.",
+     "E, por último, investigar a contribuição da comunicação terapêutica e do trabalho com a família.",
+     "Esses objetivos orientaram o desenvolvimento da nossa pesquisa."]},
+ {n:5, t:"Referencial teórico",
+  kw:["Seis pontos principais","Câncer e cuidados paliativos","SAE e Processo de Enfermagem","Atuação, comunicação, humanização, desafios, qualidade de vida e família","Paciente como um todo: sentimentos, necessidades, crenças, família","Conhecimento científico, responsabilidade e sensibilidade"],
+  s:["No referencial teórico, abordamos seis pontos principais.",
+     "O primeiro foi o câncer e os cuidados paliativos na oncologia.",
+     "O segundo foi a Sistematização da Assistência de Enfermagem e o Processo de Enfermagem.",
+     "Também estudamos a atuação do enfermeiro, a comunicação e a humanização da assistência, os desafios para implementação da SAE e a importância da qualidade de vida e do apoio à família.",
+     "Esses assuntos nos ajudaram a compreender que o cuidado paliativo precisa considerar o paciente como um todo.",
+     "Não devemos olhar apenas para a doença, mas também para seus sentimentos, suas necessidades, suas crenças e sua família.",
+     "A enfermagem tem um papel fundamental nesse processo, oferecendo assistência com conhecimento científico, responsabilidade e sensibilidade."]},
+ {n:6, t:"SAE e Processo de Enfermagem",
+  kw:["SAE e Processo: relacionados, funções diferentes","SAE: métodos, profissionais e instrumentos","Processo: avaliar, identificar, planejar e executar","5 etapas: avaliação → diagnóstico → planejamento → implementação → evolução","Assistência organizada, individualizada e contínua","Resolução COFEN nº 736, de 2024","Fecho: cuidamos da pessoa como um todo"],
+  s:["Dando continuidade, vamos falar sobre a Sistematização da Assistência de Enfermagem e o Processo de Enfermagem.",
+     "É importante entender que a SAE e o Processo de Enfermagem estão relacionados, mas possuem funções diferentes.",
+     "A SAE organiza as condições necessárias para o trabalho da enfermagem, envolvendo métodos, profissionais e instrumentos.",
+     "Já o Processo de Enfermagem é o método utilizado para orientar o cuidado, permitindo que o profissional avalie, identifique necessidades, planeje e execute as ações de assistência.",
+     "Esse processo é dividido em cinco etapas.",
+     "A primeira é a avaliação, quando o enfermeiro coleta informações sobre as condições e necessidades do paciente.",
+     "A segunda é o diagnóstico de enfermagem, quando identifica as respostas e necessidades apresentadas pelo paciente.",
+     "A terceira é o planejamento, momento em que são definidas as prioridades e os resultados esperados.",
+     "A quarta é a implementação, quando os cuidados planejados são colocados em prática.",
+     "E a quinta é a evolução, quando o enfermeiro avalia os resultados e verifica se é necessário modificar o plano de cuidados.",
+     "Essas etapas são fundamentais para oferecer uma assistência organizada, individualizada e contínua.",
+     "Nos cuidados paliativos oncológicos, esse processo ajuda a acompanhar sintomas, identificar necessidades e proporcionar mais conforto e qualidade de vida ao paciente.",
+     "Nossa referência normativa para esse assunto foi a Resolução COFEN nº 736, de 2024.",
+     {tag:"Fecho do slide 6", t:"Então, podemos compreender que, nos cuidados paliativos, não cuidamos apenas da doença, cuidamos da pessoa como um todo, respeitando sua dignidade e buscando proporcionar mais conforto e qualidade de vida."}]},
+ {n:null, t:"Passagem para Cristiane",
+  kw:["Encerro minha parte","Passo a palavra para a Cristiane","Ela apresenta a metodologia"],
+  s:["Com isso, encerro minha parte da apresentação e passo a palavra para minha colega Cristiane, que dará continuidade, apresentando a metodologia utilizada em nossa pesquisa."]}
+];
+
+/* Pontos que não podem faltar. Cada item passa se TODAS as palavras de uma das alternativas forem ditas. */
+const CHECKS = [
+ {sl:0, t:"Cumprimentou a banca e a orientadora", any:[["banca","orientadora"]]},
+ {sl:0, t:"Disse o tema do TCC", any:[["sistematizacao","paliativos","oncologia"]]},
+ {sl:1, t:"Citou o INCA", any:[["inca"]]},
+ {sl:1, t:"Disse os 781 mil casos por ano", any:[["781"],["setecentos","oitenta"]]},
+ {sl:1, t:"Disse o período de 2026 a 2028", any:[["2026"],["2028"]]},
+ {sl:1, t:"Necessidades físicas, emocionais, sociais e espirituais", any:[["fisicas","emocionais","sociais","espirituais"]]},
+ {sl:2, t:"Fez a pergunta de pesquisa", any:[["desafios","aplicabilidade"],["desafios","enfermeiro","oncologicos"]]},
+ {sl:2, t:"Listou as dificuldades (sobrecarga, recursos, capacitação)", any:[["sobrecarga","escassez","capacitacao"]]},
+ {sl:3, t:"Disse o objetivo geral", any:[["objetivo","geral"]]},
+ {sl:3, t:"Disse que são cinco objetivos específicos", any:[["cinco","especificos"],["especificos"]]},
+ {sl:3, t:"Comunicação terapêutica e família", any:[["terapeutica","familia"]]},
+ {sl:4, t:"Seis pontos do referencial teórico", any:[["seis","pontos"],["pontos","principais"]]},
+ {sl:4, t:"Paciente como um todo", any:[["considerar","paciente","todo"]]},
+ {sl:5, t:"SAE e Processo têm funções diferentes", any:[["funcoes","diferentes"]]},
+ {sl:5, t:"As cinco etapas, na ordem", any:[["avaliacao","diagnostico","planejamento","implementacao","evolucao"]]},
+ {sl:5, t:"Resolução COFEN nº 736, de 2024", any:[["736"],["cofen","2024"],["setecentos","trinta","seis"]]},
+ {sl:5, t:"Frase de fechamento do slide 6", any:[["cuidamos","pessoa"]]},
+ {sl:6, t:"Passou a palavra para a Cristiane", any:[["palavra","cristiane"]]}
+];
+
+const FILLERS = new Set(["ne","tipo","hum","hmm","humm","ahn","ah","eh","ee","eee","aham","tipo","ta"]);
+const STOP = new Set("a o e as os um uma de da do das dos em no na nos nas que com por para pra se ao aos sua seu suas seus nao mas mais como ja foi sao eu ela ele".split(" "));
+
+/* ---------- Texto ---------- */
+function norm(t){
+  return t.toLowerCase().replace(/(\d+)\.000\b/g,"$1 mil").normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .split(/[^a-z0-9]+/).filter(Boolean);
+}
+const isContent = w => /^\d/.test(w) || (w.length >= 3 && !STOP.has(w));
+function same(a,b){
+  if(a===b) return true;
+  if(/^\d/.test(a)||/^\d/.test(b)) return false;
+  return a.length>=5 && b.length>=5 && a.slice(0,5)===b.slice(0,5) && Math.abs(a.length-b.length)<=3;
+}
+
+/* ---------- Monta a tela ---------- */
+const $ = id => document.getElementById(id);
+const W = [], SENT = [];
+const vTexto = $("v-texto"), vChaves = $("v-chaves"), vLivre = $("v-livre");
+const secLabel = sec => sec.n ? `Slide ${sec.n} · ${sec.t}` : sec.t;
+
+SECS.forEach((sec, si) => {
+  sec.start = W.length;
+  const box = document.createElement("div"); box.className = "sec";
+  const h = document.createElement("h2"); h.textContent = secLabel(sec); box.appendChild(h);
+  sec.s.forEach(item => {
+    const text = typeof item === "string" ? item : item.t;
+    const p = document.createElement("p"); p.className = "sent";
+    if(item.tag){ const tg = document.createElement("span"); tg.className="tag"; tg.textContent = item.tag; p.appendChild(tg); }
+    const sent = {sl:si, start:W.length, text, el:p, idx:SENT.length};
+    text.split(/\s+/).forEach(raw => {
+      const sp = document.createElement("span"); sp.textContent = raw + " ";
+      W.push({n:norm(raw)[0]||"", s:SENT.length, sl:si, el:sp, said:false, hit:false});
+      p.appendChild(sp);
+    });
+    sent.end = W.length;
+    sent.content = W.slice(sent.start, sent.end).filter(w => isContent(w.n)).length;
+    p.addEventListener("click", () => jumpTo(sent.start));
+    SENT.push(sent); box.appendChild(p);
+  });
+  sec.end = W.length;
+  vTexto.appendChild(box);
+
+  const card = document.createElement("div"); card.className = "card";
+  const h3 = document.createElement("h3"); h3.textContent = secLabel(sec); card.appendChild(h3);
+  const ul = document.createElement("ul");
+  sec.kw.forEach(k => { const li = document.createElement("li"); li.textContent = k; ul.appendChild(li); });
+  card.appendChild(ul);
+  const bar = document.createElement("div"); bar.className="bar"; bar.innerHTML="<i></i>"; card.appendChild(bar);
+  card.addEventListener("click", () => jumpTo(sec.start));
+  sec.card = card; sec.barEl = bar.firstChild;
+  vChaves.appendChild(card);
+
+  const o = document.createElement("option"); o.value = si; o.textContent = "Começar do " + (sec.n ? `slide ${sec.n}` : "final (passagem)");
+  $("startSel").appendChild(o);
+});
+vLivre.innerHTML = '<div class="num" id="lvNum">1</div><div class="ttl" id="lvTtl"></div><div class="clock" id="lvClock">0:00</div><div class="pips" id="lvPips"></div><p>Fale sem olhar. Se travar, a dica aparece sozinha.</p>';
+SECS.forEach(() => $("lvPips").appendChild(document.createElement("i")));
+
+/* ---------- Estado ---------- */
+let mode = "texto", P = 0, tentP = 0, maxP = 0, startWord = 0;
+let running = false, everStarted = false, finished = false;
+let elapsedBase = 0, listenStart = 0, lastMove = Date.now(), lastSentShown = -1;
+let spoken = [], transcript = "", slideEnter = {}, missBuf = [];
+let rec = null, wakeLock = null, doneIdx = new Set(), lastFinal = "";
+
+const now = () => Date.now();
+const elapsed = () => elapsedBase + (running ? now() - listenStart : 0);
+const fmt = ms => { const s = Math.round(ms/1000); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+
+/* ---------- Acompanhar a fala ---------- */
+function resync(p, tri){
+  const from = Math.max(0, p - 60);
+  let best = -1, bestDist = 1e9;
+  const ci = [];
+  for(let j = from; j < W.length; j++) if(isContent(W[j].n)) ci.push(j);
+  for(let k = 0; k + 2 < ci.length; k++){
+    if(same(W[ci[k]].n,tri[0]) && same(W[ci[k+1]].n,tri[1]) && same(W[ci[k+2]].n,tri[2])){
+      const d = Math.abs(ci[k] - p) + (ci[k] < p ? 40 : 0);
+      if(d < bestDist){ bestDist = d; best = k; }
+    }
+  }
+  return best < 0 ? null : [ci[best], ci[best+1], ci[best+2]];
+}
+function advance(p, words, commit){
+  let miss = commit ? missBuf : [];
+  for(const w of words){
+    if(!isContent(w)) continue;
+    let found = -1;
+    for(let j = p; j < Math.min(W.length, p + 18); j++){
+      if(isContent(W[j].n) && same(W[j].n, w)){ found = j; break; }
+    }
+    if(found >= 0){
+      if(commit){ W[found].hit = true; for(let k = p; k <= found; k++) W[k].said = true; }
+      p = found + 1; miss.length = 0;
+    } else {
+      miss.push(w);
+      if(miss.length >= 3){
+        const r = resync(p, miss.slice(-3));
+        if(r){
+          if(commit){ r.forEach(i => W[i].hit = true); for(let k = r[0]; k <= r[2]; k++) W[k].said = true; }
+          p = r[2] + 1; miss.length = 0;
+        }
+      }
+    }
+  }
+  return p;
+}
+function onFinal(text){
+  const words = norm(text);
+  if(!words.length) return;
+  spoken.push(...words);
+  transcript += (transcript ? " " : "") + text.trim();
+  const before = P;
+  P = advance(P, words, true);
+  tentP = P;
+  maxP = Math.max(maxP, P);
+  if(P !== before) lastMove = now();
+  render();
+  if(P >= W.length - 2) setTimeout(() => { if(running) finish(); }, 1500);
+}
+function onInterim(text){
+  const t = advance(P, norm(text), false);
+  if(t !== tentP){ if(t > tentP) lastMove = now(); tentP = t; render(); }
+}
+function jumpTo(i){
+  P = tentP = i; missBuf = [];
+  if(!everStarted){ startWord = i; $("startSel").value = W[i].sl; }
+  lastMove = now(); lastSentShown = -1; render();
+}
+
+/* ---------- Desenho ---------- */
+function render(){
+  const pos = Math.min(Math.max(P, tentP), W.length - 1);
+  const cur = W[pos];
+  for(let i = 0; i < W.length; i++){
+    const w = W[i];
+    w.el.classList.toggle("said", w.said);
+    w.el.classList.toggle("tent", !w.said && i >= P && i < tentP);
+  }
+  SENT.forEach((s, i) => s.el.classList.toggle("cur", i === cur.s));
+  const sec = SECS[cur.sl];
+  if(cur.sl in slideEnter === false && running) slideEnter[cur.sl] = elapsed();
+  $("stSlide").textContent = secLabel(sec);
+  SECS.forEach((s, i) => {
+    s.card.classList.toggle("on", i === cur.sl);
+    s.card.classList.toggle("done", i < cur.sl);
+    const pct = Math.max(0, Math.min(1, (pos - s.start) / (s.end - s.start)));
+    s.barEl.style.width = (i < cur.sl ? 100 : i > cur.sl ? 0 : pct * 100) + "%";
+  });
+  $("lvNum").textContent = sec.n || "→";
+  $("lvTtl").textContent = sec.t;
+  [...$("lvPips").children].forEach((p, i) => p.classList.toggle("on", i <= cur.sl));
+  if(cur.s !== lastSentShown){
+    lastSentShown = cur.s;
+    const target = mode === "texto" ? SENT[cur.s].el : mode === "chaves" ? sec.card : null;
+    if(target && everStarted) target.scrollIntoView({block:"center", behavior:"smooth"});
+  }
+}
+function tick(){
+  const ms = elapsed();
+  $("stTime").textContent = fmt(ms); $("lvClock").textContent = fmt(ms);
+  const min = ms / 60000;
+  $("stWpm").textContent = min > 0.25 ? Math.round(spoken.length / min) + "/min" : "–";
+  const stall = mode === "texto" ? 1e9 : mode === "chaves" ? 5000 : 8000;
+  const show = running && now() - lastMove > stall && P < W.length;
+  if(show){
+    const pos = Math.max(P, tentP);
+    const s = SENT[W[Math.min(pos, W.length-1)].s];
+    const ws = s.text.split(/\s+/);
+    const from = Math.max(0, pos - s.start);
+    $("hintText").textContent = ws.slice(from, from + 8).join(" ") + (from + 8 < ws.length ? " …" : "");
+  }
+  $("hint").hidden = !show;
+}
+setInterval(tick, 400);
+
+/* ---------- Microfone ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(!SR){ $("unsupported").hidden = false; $("micBtn").disabled = true; }
+
+function makeRec(){
+  const r = new SR();
+  r.lang = "pt-BR"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+  r.onstart = () => { doneIdx = new Set(); lastFinal = ""; };
+  r.onresult = e => {
+    let interim = "";
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const res = e.results[i], t = res[0].transcript;
+      if(res.isFinal){
+        if(doneIdx.has(i)) continue;
+        doneIdx.add(i);
+        let piece = t.trim();
+        const lf = lastFinal.toLowerCase();
+        if(lf && piece.toLowerCase().startsWith(lf)) piece = piece.slice(lf.length);
+        lastFinal = t.trim();
+        onFinal(piece);
+      } else interim += t;
+    }
+    if(interim) onInterim(interim);
+  };
+  r.onerror = e => {
+    if(e.error === "not-allowed" || e.error === "service-not-allowed"){
+      stop(); alertBox("O microfone foi bloqueado. Toque no cadeado ao lado do endereço e permita o microfone.");
+    } else if(e.error === "network"){
+      stop(); alertBox("Sem internet. O reconhecimento de voz do Chrome precisa de conexão.");
+    }
+  };
+  r.onend = () => { if(running) setTimeout(() => { if(running) try{ r.start(); }catch(_){} }, 200); };
+  return r;
+}
+function alertBox(msg){
+  const n = $("unsupported"); n.hidden = false;
+  n.querySelector("h2").textContent = "Não deu para escutar";
+  n.querySelector("p").textContent = msg;
+  window.scrollTo({top:0});
+}
+async function start(){
+  if(!rec) rec = makeRec();
+  if(!everStarted){ everStarted = true; startWord = P; slideEnter = {}; }
+  running = true; listenStart = now(); lastMove = now();
+  document.body.classList.add("listening");
+  $("intro").hidden = true; $("unsupported").hidden = true;
+  $("micBtn").textContent = "❚❚ Pausar"; $("micBtn").classList.add("on");
+  $("endBtn").hidden = false; $("startSel").hidden = true;
+  try{ rec.start(); }catch(_){}
+  try{ wakeLock = await navigator.wakeLock?.request("screen"); }catch(_){}
+  render();
+}
+function stop(){
+  if(running) elapsedBase += now() - listenStart;
+  running = false;
+  document.body.classList.remove("listening");
+  $("micBtn").textContent = "● Continuar"; $("micBtn").classList.remove("on");
+  try{ rec && rec.stop(); }catch(_){}
+  try{ wakeLock && wakeLock.release(); }catch(_){}
+  $("hint").hidden = true;
+}
+$("micBtn").addEventListener("click", () => running ? stop() : start());
+$("endBtn").addEventListener("click", finish);
+
+/* ---------- Resultado ---------- */
+function finish(){
+  if(finished) return;
+  stop(); finished = true;
+  const ms = elapsedBase, min = ms / 60000;
+  const endP = Math.max(maxP, P);
+  const firstSec = W[startWord].sl, lastSec = W[Math.max(startWord, Math.min(endP, W.length) - 1)].sl;
+  const attempted = SENT.filter(s => s.start >= startWord && s.start < endP);
+  const skipped = attempted.filter(s => {
+    const hits = W.slice(s.start, s.end).filter(w => w.hit).length;
+    return s.content > 0 && hits / s.content < 0.35;
+  });
+  skipped.forEach(s => s.el.classList.add("skip"));
+  const notReached = SENT.filter(s => s.start >= endP).length;
+  const doneSents = attempted.length - skipped.length;
+  const totalSents = SENT.filter(s => s.start >= startWord).length;
+  const cov = totalSents ? Math.round(100 * doneSents / totalSents) : 0;
+
+  const said = new Set(spoken);
+  const has = r => said.has(r) || (r.length >= 5 && [...said].some(w => same(w, r)));
+  const checks = CHECKS.filter(c => c.sl >= firstSec && c.sl <= lastSec)
+    .map(c => ({t:c.t, ok:c.any.some(alt => alt.every(has))}));
+
+  const wpm = min > 0 ? Math.round(spoken.length / min) : 0;
+  const fill = spoken.filter(w => FILLERS.has(w)).length;
+  const pace = wpm === 0 ? "" : wpm < 105 ? "Um pouco devagar. Pode soltar mais a fala." : wpm <= 155 ? "Bom ritmo, fácil de acompanhar." : "Rápido. Respire entre as frases.";
+
+  const times = [];
+  const keys = Object.keys(slideEnter).map(Number).sort((a,b) => a-b);
+  keys.forEach((k, i) => times.push({sl:k, ms:(i+1 < keys.length ? slideEnter[keys[i+1]] : ms) - slideEnter[k]}));
+  const maxT = Math.max(1, ...times.map(t => t.ms));
+
+  const fullRun = startWord === 0;
+  const expected = Math.round(W.length / 130);
+
+  try{
+    const h = JSON.parse(localStorage.getItem("tcc-hist") || "[]");
+    h.unshift({d:new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}), m:mode, ms, wpm, cov, full:fullRun});
+    localStorage.setItem("tcc-hist", JSON.stringify(h.slice(0, 8)));
+  }catch(_){}
+
+  const B = $("resultBody"); B.innerHTML = "";
+  const add = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; B.appendChild(e); return e; };
+  const okCount = checks.filter(c => c.ok).length;
+  add("h1", null, cov >= 90 && okCount === checks.length ? "Muito bem! Você passou por tudo." : cov >= 60 ? "Bom treino! Faltaram alguns pontos." : "Treino feito. Vamos reforçar algumas partes.");
+  add("p", "lead", fullRun ? `Tempo previsto para a sua parte: cerca de ${expected} minutos.` : `Treino a partir de: ${secLabel(SECS[firstSec])}.`);
+
+  const tiles = add("div", "tiles");
+  const tile = (big, small, note) => { const t = document.createElement("div"); t.className = "tile";
+    const b = document.createElement("b"); b.textContent = big; const s = document.createElement("span"); s.textContent = small; t.append(b, s);
+    if(note){ const e = document.createElement("em"); e.textContent = note; t.appendChild(e); } tiles.appendChild(t); };
+  tile(fmt(ms), "tempo total");
+  tile(cov + "%", "do roteiro falado", notReached ? `${notReached} frases não alcançadas` : "");
+  tile(wpm ? wpm + "/min" : "–", "palavras por minuto", pace);
+  tile(String(fill), "“né”, “tipo”, “hum”", fill > 5 ? "Tente trocar por uma pausa curta." : "Ótimo.");
+
+  if(checks.length){
+    add("h2", null, `Pontos importantes (${okCount} de ${checks.length})`);
+    const ul = add("ul", "checks");
+    checks.forEach(c => { const li = document.createElement("li"); li.className = c.ok ? "ok" : "no";
+      const i = document.createElement("i"); i.textContent = c.ok ? "✓" : "✗";
+      const s = document.createElement("span"); s.textContent = c.t; li.append(i, s); ul.appendChild(li); });
+  }
+  if(skipped.length){
+    add("h2", null, "Frases que ficaram de fora");
+    const box = add("div", "skips");
+    skipped.forEach(s => { const p = document.createElement("p"); const sm = document.createElement("small");
+      sm.textContent = secLabel(SECS[s.sl]); p.append(sm, document.createTextNode(s.text)); box.appendChild(p); });
+  }
+  if(times.length){
+    add("h2", null, "Tempo em cada slide");
+    const box = add("div", "times");
+    times.forEach(t => { const d = document.createElement("div");
+      const l = document.createElement("span"); l.textContent = SECS[t.sl].n ? "Slide " + SECS[t.sl].n : "Passagem";
+      const tb = document.createElement("span"); tb.className = "tb"; const bi = document.createElement("i"); bi.style.width = (100 * t.ms / maxT) + "%"; tb.appendChild(bi);
+      const v = document.createElement("span"); v.textContent = fmt(t.ms); d.append(l, tb, v); box.appendChild(d); });
+  }
+  const det = add("details"); const sum = document.createElement("summary"); sum.textContent = "Ver o que o app entendeu";
+  const tp = document.createElement("p"); tp.textContent = transcript || "Nada foi entendido. Confira se o microfone está liberado.";
+  det.append(sum, tp);
+  add("p", "lead", "O reconhecimento de voz às vezes ignora “éé…” e erra nomes. Use o resultado como guia, não como nota.").style.marginTop = "14px";
+
+  const act = add("div", "actions");
+  const again = document.createElement("button"); again.className = "mic"; again.type = "button"; again.textContent = "Treinar de novo";
+  again.onclick = reset;
+  const view = document.createElement("button"); view.className = "ghost"; view.type = "button"; view.textContent = "Ver frases puladas no texto";
+  view.onclick = () => { $("result").hidden = true; setMode("texto"); (skipped[0] || SENT[0]).el.scrollIntoView({block:"center"}); };
+  act.append(again, view);
+  $("result").hidden = false; $("result").scrollTop = 0;
+}
+function reset(){
+  W.forEach(w => { w.said = false; w.hit = false; });
+  SENT.forEach(s => s.el.classList.remove("skip"));
+  P = tentP = maxP = startWord = SECS[+$("startSel").value].start;
+  running = false; everStarted = false; finished = false;
+  elapsedBase = 0; spoken = []; transcript = ""; slideEnter = {}; missBuf = []; lastSentShown = -1;
+  $("micBtn").textContent = "● Começar"; $("endBtn").hidden = true; $("startSel").hidden = false;
+  $("result").hidden = true; $("intro").hidden = false;
+  showHistory(); render(); window.scrollTo({top:0});
+}
+
+/* ---------- Controles ---------- */
+function setMode(m){
+  mode = m;
+  document.querySelectorAll("#modes button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
+  vTexto.hidden = m !== "texto"; vChaves.hidden = m !== "chaves"; vLivre.hidden = m !== "livre";
+  try{ localStorage.setItem("tcc-mode", m); }catch(_){}
+  lastSentShown = -1; render();
+}
+document.querySelectorAll("#modes button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+$("startSel").addEventListener("change", e => { if(!everStarted) jumpTo(SECS[+e.target.value].start); });
+const SIZES = ["1.3rem", "1.6rem", "1.1rem"]; let sizeI = 0;
+$("fontBtn").addEventListener("click", () => { sizeI = (sizeI + 1) % SIZES.length; document.documentElement.style.setProperty("--fs", SIZES[sizeI]); try{ localStorage.setItem("tcc-fs", sizeI); }catch(_){} });
+
+function showHistory(){
+  let h = [];
+  try{ h = JSON.parse(localStorage.getItem("tcc-hist") || "[]"); }catch(_){}
+  const el = $("hist"); el.innerHTML = "";
+  if(!h.length) return;
+  const names = {texto:"Texto inteiro", chaves:"Palavras-chave", livre:"Sem cola"};
+  const t = document.createElement("table");
+  t.innerHTML = "<thead><tr><th>Últimos treinos</th><th>Modo</th><th>Tempo</th><th>Roteiro</th></tr></thead>";
+  const tb = document.createElement("tbody");
+  h.forEach(r => { const tr = document.createElement("tr");
+    [r.d, names[r.m] || r.m, fmt(r.ms), r.cov + "%"].forEach(v => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
+    tb.appendChild(tr); });
+  t.appendChild(tb); el.appendChild(t);
+}
+try{
+  const m = localStorage.getItem("tcc-mode"); if(m) setMode(m);
+  const f = +localStorage.getItem("tcc-fs"); if(f){ sizeI = f; document.documentElement.style.setProperty("--fs", SIZES[f]); }
+}catch(_){}
+showHistory(); render();
+document.addEventListener("visibilitychange", () => { if(document.hidden && running) stop(); });
+</script>
+</body>
+</html>
