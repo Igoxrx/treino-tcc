@@ -97,6 +97,8 @@ main{padding-block:18px 170px}
 /* barra de baixo */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 .dock .wrap{display:flex;align-items:center;gap:10px;padding-block:12px}
+.heard{font-size:.85rem;color:var(--muted);padding-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.heard b{color:var(--ink)}
 .dock select{flex:1;min-width:0;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:.9rem}
 .mic{flex:0 0 auto;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:1.05rem;padding:16px 22px;min-width:150px;box-shadow:0 4px 14px rgb(13 122 111 / .35)}
 .mic.on{background:#c62f2f;color:#fff;box-shadow:0 4px 14px rgb(198 47 47 / .35)}
@@ -177,6 +179,7 @@ details p{color:var(--muted);font-size:.95rem}
 <div class="hint" id="hint" hidden><div><small>Próxima frase</small><span id="hintText"></span></div></div>
 
 <footer class="dock">
+  <div class="wrap heard" id="heard" hidden></div>
   <div class="wrap">
     <select id="startSel" aria-label="Começar a partir de"></select>
     <button class="ghost" id="endBtn" type="button" hidden>Terminar</button>
@@ -459,9 +462,11 @@ if(!SR){ $("unsupported").hidden = false; $("micBtn").disabled = true; }
 function makeRec(){
   const r = new SR();
   r.lang = "pt-BR"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
-  r.onstart = () => { doneIdx = new Set(); lastFinal = ""; };
+  r.onstart = () => { doneIdx = new Set(); lastFinal = ""; heard("Microfone ligado. Pode falar…"); };
   r.onresult = e => {
-    let interim = "";
+    let interim = "", all = "";
+    for(let i = 0; i < e.results.length; i++) all += e.results[i][0].transcript;
+    heard("Ouvi: ", all.slice(-90));
     for(let i = e.resultIndex; i < e.results.length; i++){
       const res = e.results[i], t = res[0].transcript;
       if(res.isFinal){
@@ -480,11 +485,21 @@ function makeRec(){
     if(e.error === "not-allowed" || e.error === "service-not-allowed"){
       stop(); alertBox("O microfone foi bloqueado. Toque no cadeado ao lado do endereço e permita o microfone.");
     } else if(e.error === "network"){
-      stop(); alertBox("Sem internet. O reconhecimento de voz do Chrome precisa de conexão.");
+      stop(); alertBox("O reconhecimento de voz não respondeu (erro de rede). Confira a internet e use o Google Chrome: Edge, Brave e Opera costumam dar esse erro.");
+    } else if(e.error === "audio-capture"){
+      stop(); alertBox("Nenhum microfone encontrado. Confira se o microfone está conectado e liberado para o Chrome.");
+    } else if(e.error === "language-not-supported"){
+      stop(); alertBox("Este navegador não reconhece português. Use o Google Chrome.");
+    } else if(e.error !== "no-speech" && e.error !== "aborted"){
+      heard("Erro do microfone: ", e.error);
     }
   };
   r.onend = () => { if(running) setTimeout(() => { if(running) try{ r.start(); }catch(_){} }, 200); };
   return r;
+}
+function heard(label, text = ""){
+  const h = $("heard"); h.hidden = false; h.textContent = "";
+  const b = document.createElement("b"); b.textContent = label; h.append(b, document.createTextNode(text));
 }
 function alertBox(msg){
   const n = $("unsupported"); n.hidden = false;
@@ -500,7 +515,8 @@ async function start(){
   $("intro").hidden = true; $("unsupported").hidden = true;
   $("micBtn").textContent = "❚❚ Pausar"; $("micBtn").classList.add("on");
   $("endBtn").hidden = false; $("startSel").hidden = true;
-  try{ rec.start(); }catch(_){}
+  heard("Ligando o microfone…");
+  try{ rec.start(); }catch(err){ heard("Não consegui ligar o microfone: ", String(err.message || err)); }
   try{ wakeLock = await navigator.wakeLock?.request("screen"); }catch(_){}
   render();
 }
