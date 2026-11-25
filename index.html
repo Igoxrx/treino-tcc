@@ -629,7 +629,7 @@ function finish(){
   const checks = CHECKS.filter(c => c.sl >= firstSec && c.sl <= lastSec)
     .map(c => ({t:c.t, ok:c.any.some(alt => alt.every(has))}));
 
-  const wpm = min > 0 ? Math.round(spoken.length / min) : 0;
+  const wpm = min > 0.25 ? Math.round(spoken.length / min) : 0;
   const fill = spoken.filter(w => FILLERS.has(w)).length;
   const pace = wpm === 0 ? "" : wpm < 105 ? "Um pouco devagar. Pode soltar mais a fala." : wpm <= 155 ? "Bom ritmo, fácil de acompanhar." : "Rápido. Respire entre as frases.";
 
