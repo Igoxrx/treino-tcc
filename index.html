@@ -46,6 +46,8 @@ button{cursor:pointer}
 .iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;font-size:.9rem}
 .stats{display:flex;gap:14px;font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .stats b{color:var(--ink);font-weight:700}
+.stats b.near,.clock.near{color:var(--warn)}
+.stats b.over,.clock.over{color:var(--err)}
 .stats .slide{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--said);margin-right:6px;vertical-align:middle}
 .listening .dot{background:#d33;animation:pulse 1.2s infinite}
@@ -164,7 +166,7 @@ details p{color:var(--muted);font-size:.95rem}
 <header class="top" id="top">
   <div class="wrap">
     <div class="row">
-      <div class="brand">Treino do TCC<small>SAE em Cuidados Paliativos na Oncologia · slides 1 a 6 · versão 11</small></div>
+      <div class="brand">Treino do TCC<small>SAE em Cuidados Paliativos na Oncologia · slides 1 a 6 · versão 12</small></div>
       <button class="iconbtn" id="fontBtn" type="button" aria-label="Mudar tamanho da letra">Aa</button>
     </div>
     <div class="seg" id="modes">
@@ -174,7 +176,7 @@ details p{color:var(--muted);font-size:.95rem}
     </div>
     <div class="stats">
       <span class="slide"><span class="dot"></span><b id="stSlide">Slide 1</b></span>
-      <span>Tempo <b id="stTime">0:00</b></span>
+      <span>Tempo <b id="stTime">0:00 de 10:00</b></span>
       <span>Ritmo <b id="stWpm">–</b></span>
     </div>
     <div class="pace idle" id="pace" hidden></div>
@@ -308,6 +310,7 @@ const CHECKS = [
  {sl:6, t:"Passou a palavra para a Cristiane", any:[["palavra","cristiane"]]}
 ];
 
+const LIMIT = 10 * 60000; /* tempo que ela tem para a parte dela */
 const FILLERS = new Set(["ne","tipo","hum","hmm","humm","ahn","ah","eh","ee","eee","aham","tipo","ta"]);
 /* Nomes e siglas que o reconhecimento de voz costuma errar: não contam como erro */
 const NAMES = new Set("adriana silva sousa cristiane jesus santos sabrina kelly mendes reboucas uniplan inca cofen sae".split(" "));
@@ -562,7 +565,9 @@ function keepInView(el, force, frac = 0.22){
 }
 function tick(){
   const ms = elapsed();
-  $("stTime").textContent = fmt(ms); $("lvClock").textContent = fmt(ms);
+  $("stTime").textContent = fmt(ms) + " de 10:00"; $("lvClock").textContent = fmt(ms) + " / 10:00";
+  const lim = ms >= LIMIT ? "over" : ms >= LIMIT - 2 * 60000 ? "near" : "";
+  $("stTime").className = lim; $("lvClock").className = "clock " + lim;
   const min = ms / 60000;
   $("stWpm").textContent = min > 0.25 ? Math.round(spoken.length / min) + "/min" : "–";
   const stall = mode === "texto" ? 1e9 : mode === "chaves" ? 5000 : 8000;
@@ -725,13 +730,18 @@ function finish(){
   const add = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; B.appendChild(e); return e; };
   const okCount = checks.filter(c => c.ok).length;
   add("h1", null, cov >= 90 && okCount === checks.length ? "Muito bem! Você passou por tudo." : cov >= 60 ? "Bom treino! Faltaram alguns pontos." : "Treino feito. Vamos reforçar algumas partes.");
-  add("p", "lead", fullRun ? `Tempo previsto para a sua parte: cerca de ${expected} minutos.` : `Treino a partir de: ${secLabel(SECS[firstSec])}.`);
+  add("p", "lead", (fullRun ? "" : `Treino a partir de: ${secLabel(SECS[firstSec])}. `) + `Você tem 10 minutos. Num ritmo calmo, a sua parte leva cerca de ${expected} minutos.`);
 
   const tiles = add("div", "tiles");
   const tile = (big, small, note) => { const t = document.createElement("div"); t.className = "tile";
     const b = document.createElement("b"); b.textContent = big; const s = document.createElement("span"); s.textContent = small; t.append(b, s);
     if(note){ const e = document.createElement("em"); e.textContent = note; t.appendChild(e); } tiles.appendChild(t); };
-  tile(fmt(ms), "tempo total");
+  const doneFrac = (endP - startWord) / W.length;
+  const projected = doneFrac >= 0.15 ? ms / doneFrac : 0;
+  let timeNote = "";
+  if(fullRun && endP >= W.length - 3) timeNote = ms <= LIMIT ? `Dentro dos 10 min. Sobraram ${fmt(LIMIT - ms)}.` : `Passou ${fmt(ms - LIMIT)} dos 10 min.`;
+  else if(projected) timeNote = projected <= LIMIT ? `Nesse ritmo, a parte toda leva ${fmt(projected)}. Cabe nos 10 min.` : `Nesse ritmo, a parte toda leva ${fmt(projected)}. Passaria dos 10 min.`;
+  tile(fmt(ms), "tempo total", timeNote);
   tile(cov + "%", "do roteiro falado", notReached ? `${notReached} frases não alcançadas` : "");
   tile(wpm ? wpm + "/min" : "–", "palavras por minuto", pace);
   tile(String(fill), "“né”, “tipo”, “hum”", fill > 5 ? "Tente trocar por uma pausa curta." : "Ótimo.");
