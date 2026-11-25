@@ -105,6 +105,8 @@ main{padding-block:18px 300px}
 .fb .btns button.alt{background:transparent;border:1px solid var(--line);color:var(--ink)}
 @keyframes shake{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 .sent.err{background:var(--errbg)!important;box-shadow:inset 4px 0 0 var(--err);animation:shake .4s}
+.sent span.wrong{color:var(--err);text-decoration:underline wavy var(--err);text-underline-offset:4px;font-weight:700}
+.fb .badw{color:var(--err);text-decoration:line-through}
 .sent.had-err::after{content:" ✗";color:var(--err);font-weight:700;font-size:.8em}
 .tools{display:flex;gap:8px;padding-top:10px}
 .tools button{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 6px;font-size:.85rem;font-weight:700}
@@ -309,7 +311,9 @@ const isContent = w => /^\d/.test(w) || (w.length >= 3 && !STOP.has(w));
 function same(a,b){
   if(a===b) return true;
   if(/^\d/.test(a)||/^\d/.test(b)) return false;
-  return a.length>=5 && b.length>=5 && a.slice(0,5)===b.slice(0,5) && Math.abs(a.length-b.length)<=3;
+  if(a.length < 5 || b.length < 5) return false;
+  let k = 0; while(k < a.length && k < b.length && a[k] === b[k]) k++;
+  return k >= Math.max(5, Math.min(a.length, b.length) - 2);
 }
 
 /* ---------- Monta a tela ---------- */
@@ -329,7 +333,9 @@ SECS.forEach((sec, si) => {
     const sent = {sl:si, start:W.length, text, el:p, idx:SENT.length};
     text.split(/\s+/).forEach(raw => {
       const sp = document.createElement("span"); sp.textContent = raw + " ";
-      W.push({n:norm(raw)[0]||"", s:SENT.length, sl:si, el:sp, said:false, hit:false});
+      const first = W.length === sent.start;
+      W.push({n:norm(raw)[0]||"", raw, s:SENT.length, sl:si, el:sp, said:false, hit:false,
+              name: !first && /^[A-ZÁÉÍÓÚÂÊ]/.test(raw)});
       p.appendChild(sp);
     });
     sent.end = W.length;
@@ -381,14 +387,15 @@ function resync(p, tri){
   }
   return best < 0 ? null : [ci[best], ci[best+1], ci[best+2]];
 }
-let aHits = 0;
+let aHits = 0, aWrong = [];
+function nextContent(p){ while(p < W.length && !isContent(W[p].n)) p++; return p; }
 function advance(p, words, commit){
   let miss = commit ? missBuf : [];
-  aHits = 0;
+  aHits = 0; aWrong = [];
   for(const w of words){
     if(!isContent(w)) continue;
     let found = -1;
-    for(let j = p; j < Math.min(W.length, p + 18); j++){
+    for(let j = p; j < Math.min(W.length, p + 9); j++){
       if(isContent(W[j].n) && same(W[j].n, w)){ found = j; break; }
     }
     if(found >= 0){
@@ -396,11 +403,14 @@ function advance(p, words, commit){
       p = found + 1; miss.length = 0; aHits++;
     } else {
       miss.push(w);
+      const exp = nextContent(p);
+      if(!FILLERS.has(w) && exp < W.length && !W[exp].name) aWrong.push({w, exp});
       if(miss.length >= 3){
         const r = resync(p, miss.slice(-3));
         if(r){
           if(commit){ r.forEach(i => W[i].hit = true); for(let k = r[0]; k <= r[2]; k++) W[k].said = true; }
           p = r[2] + 1; miss.length = 0; aHits += 3;
+          aWrong.splice(Math.max(0, aWrong.length - 3));
         }
       }
     }
@@ -418,32 +428,42 @@ function onFinal(text){
   tentP = P;
   maxP = Math.max(maxP, P);
   if(P !== before) lastMove = now();
-  const content = words.filter(isContent).length;
-  if(content >= 3 && aHits / content < 0.4) markError(text, sentBefore);
+  const wrong = aWrong.slice();
+  if(wrong.length) markError(text, sentBefore, wrong);
   render();
   if(P >= W.length - 2) setTimeout(() => { if(running) finish(); }, 1500);
 }
 
 /* ---------- Erros e voltar ---------- */
 let errCount = {}, fbTimer = 0;
-function markError(text, s){
+function markError(text, s, wrong){
+  const exp0 = wrong[0].exp;
+  s = W[exp0].s;
   errCount[s] = (errCount[s] || 0) + 1;
   const el = SENT[s].el;
   el.classList.remove("err"); void el.offsetWidth; el.classList.add("err", "had-err");
   setTimeout(() => el.classList.remove("err"), 1600);
+  wrong.forEach(x => { const sp = W[x.exp].el; sp.classList.add("wrong"); setTimeout(() => sp.classList.remove("wrong"), 4000); });
   try{ navigator.vibrate && navigator.vibrate(150); }catch(_){}
-  const pos = Math.max(0, Math.min(P, W.length - 1) - SENT[s].start);
   const ws = SENT[s].text.split(/\s+/);
-  const right = ws.slice(Math.min(pos, ws.length - 1), Math.min(pos, ws.length - 1) + 10).join(" ");
+  const pos = Math.max(0, exp0 - SENT[s].start);
+  const from = Math.max(0, pos - 2);
   const many = errCount[s] >= 2;
   const fb = $("fb"); fb.textContent = "";
   const box = document.createElement("div");
   const t = document.createElement("div"); t.className = "t";
-  t.textContent = many ? `✗ Errou este parágrafo ${errCount[s]} vezes` : "✗ Isso não bate com o roteiro";
-  const sd = document.createElement("div"); sd.className = "said"; sd.textContent = "Você disse: “" + text.trim().slice(0, 80) + "”";
+  t.textContent = many ? `✗ Errou este parágrafo ${errCount[s]} vezes` : `✗ ${wrong.length > 1 ? "Palavras diferentes" : "Palavra diferente"} do roteiro`;
+  const sd = document.createElement("div"); sd.className = "said";
+  sd.append("Você disse: ");
+  const bad = new Set(wrong.map(x => x.w));
+  text.trim().split(/\s+/).slice(-14).forEach(tok => {
+    const isBad = bad.has(norm(tok)[0]);
+    const e = document.createElement(isBad ? "b" : "span"); e.textContent = tok + " ";
+    if(isBad) e.className = "badw"; sd.appendChild(e);
+  });
   const rt = document.createElement("div"); rt.className = "right";
-  const sm = document.createElement("small"); sm.textContent = "O certo é";
-  rt.append(sm, document.createTextNode(right + (ws.length > pos + 10 ? " …" : "")));
+  const sm = document.createElement("small"); sm.textContent = "No roteiro está";
+  rt.append(sm, document.createTextNode((from > 0 ? "… " : "") + ws.slice(from, from + 10).join(" ") + (ws.length > from + 10 ? " …" : "")));
   box.append(t, sd, rt);
   if(many){
     const b = document.createElement("div"); b.className = "btns";
