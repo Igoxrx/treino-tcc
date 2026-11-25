@@ -300,6 +300,8 @@ const CHECKS = [
 ];
 
 const FILLERS = new Set(["ne","tipo","hum","hmm","humm","ahn","ah","eh","ee","eee","aham","tipo","ta"]);
+/* Nomes e siglas que o reconhecimento de voz costuma errar: não contam como erro */
+const NAMES = new Set("adriana silva sousa cristiane jesus santos sabrina kelly mendes reboucas uniplan inca cofen sae".split(" "));
 const STOP = new Set("a o e as os um uma de da do das dos em no na nos nas que com por para pra se ao aos sua seu suas seus nao mas mais como ja foi sao eu ela ele".split(" "));
 
 /* ---------- Texto ---------- */
@@ -333,9 +335,8 @@ SECS.forEach((sec, si) => {
     const sent = {sl:si, start:W.length, text, el:p, idx:SENT.length};
     text.split(/\s+/).forEach(raw => {
       const sp = document.createElement("span"); sp.textContent = raw + " ";
-      const first = W.length === sent.start;
-      W.push({n:norm(raw)[0]||"", raw, s:SENT.length, sl:si, el:sp, said:false, hit:false,
-              name: !first && /^[A-ZÁÉÍÓÚÂÊ]/.test(raw)});
+      const n = norm(raw)[0] || "";
+      W.push({n, raw, s:SENT.length, sl:si, el:sp, said:false, hit:false, name: NAMES.has(n)});
       p.appendChild(sp);
     });
     sent.end = W.length;
