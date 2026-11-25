@@ -13,6 +13,7 @@
 :root{
   --bg:#f4f7f6; --surface:#ffffff; --ink:#17302c; --muted:#5b706b; --line:#d6e2df;
   --accent:#0d7a6f; --accent-ink:#ffffff; --said:#9fb4af; --cur:#e0f1ec; --warn:#b4541a; --ok:#2c7a3a;
+  --err:#c8323a; --errbg:#fde8e8;
   --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-head:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;
   --fs:1.3rem;
@@ -21,6 +22,7 @@
 @media (prefers-color-scheme:dark){:root{
   --bg:#0e1918; --surface:#152422; --ink:#e5efec; --muted:#93a8a3; --line:#26403b;
   --accent:#4cc2b1; --accent-ink:#06201c; --said:#5a716c; --cur:#1c3a35; --warn:#f0a36b; --ok:#7cca8c;
+  --err:#ff6b70; --errbg:#3a1a1d;
   color-scheme:dark;
 }}
 *{box-sizing:border-box}
@@ -49,7 +51,7 @@ button{cursor:pointer}
 .listening .dot{background:#d33;animation:pulse 1.2s infinite}
 @keyframes pulse{50%{opacity:.3}}
 
-main{padding-block:18px 170px}
+main{padding-block:18px 300px}
 
 /* aviso */
 .notice{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:18px}
@@ -89,10 +91,23 @@ main{padding-block:18px 170px}
 .free .pips i.on{background:var(--accent)}
 .free p{color:var(--muted)}
 
-/* dica */
-.hint{position:fixed;left:0;right:0;bottom:calc(104px + env(safe-area-inset-bottom));z-index:6;display:flex;justify-content:center;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
-.hint div{max-width:700px;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 16px;font-size:var(--fs);box-shadow:0 6px 24px rgb(0 0 0 / .2)}
-.hint small{display:block;font-size:.75rem;opacity:.7;text-transform:uppercase;letter-spacing:.06em}
+/* dica e aviso de erro (ficam no topo da barra de baixo) */
+.hint{padding-top:10px}
+.hint div{background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 14px;font-size:calc(var(--fs) * .9)}
+.hint small,.fb small{display:block;font-size:.72rem;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
+.fb{padding-top:10px}
+.fb > div{background:var(--errbg);border:2px solid var(--err);border-radius:14px;padding:10px 14px;animation:shake .4s}
+.fb .t{font-weight:700;color:var(--err)}
+.fb .said{color:var(--muted);font-size:.9rem;margin-top:2px}
+.fb .right{font-size:calc(var(--fs) * .9);margin-top:4px}
+.fb .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.fb .btns button{flex:1 1 auto;border:0;border-radius:10px;padding:10px 12px;font-weight:700;background:var(--err);color:#fff}
+.fb .btns button.alt{background:transparent;border:1px solid var(--line);color:var(--ink)}
+@keyframes shake{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.sent.err{background:var(--errbg)!important;box-shadow:inset 4px 0 0 var(--err);animation:shake .4s}
+.sent.had-err::after{content:" ✗";color:var(--err);font-weight:700;font-size:.8em}
+.tools{display:flex;gap:8px;padding-top:10px}
+.tools button{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 6px;font-size:.85rem;font-weight:700}
 
 /* barra de baixo */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
@@ -176,10 +191,14 @@ details p{color:var(--muted);font-size:.95rem}
   <section id="v-livre" class="free" hidden></section>
 </main>
 
-<div class="hint" id="hint" hidden><div><small>Próxima frase</small><span id="hintText"></span></div></div>
-
 <footer class="dock">
+  <div class="wrap fb" id="fb" hidden></div>
+  <div class="wrap hint" id="hint" hidden><div><small>Próxima frase</small><span id="hintText"></span></div></div>
   <div class="wrap heard" id="heard" hidden></div>
+  <div class="wrap tools" id="tools" hidden>
+    <button type="button" id="rwSame">↺ Início do parágrafo</button>
+    <button type="button" id="rwPrev">⤺ Parágrafo anterior</button>
+  </div>
   <div class="wrap">
     <select id="startSel" aria-label="Começar a partir de"></select>
     <button class="ghost" id="endBtn" type="button" hidden>Terminar</button>
@@ -362,8 +381,10 @@ function resync(p, tri){
   }
   return best < 0 ? null : [ci[best], ci[best+1], ci[best+2]];
 }
+let aHits = 0;
 function advance(p, words, commit){
   let miss = commit ? missBuf : [];
+  aHits = 0;
   for(const w of words){
     if(!isContent(w)) continue;
     let found = -1;
@@ -372,14 +393,14 @@ function advance(p, words, commit){
     }
     if(found >= 0){
       if(commit){ W[found].hit = true; for(let k = p; k <= found; k++) W[k].said = true; }
-      p = found + 1; miss.length = 0;
+      p = found + 1; miss.length = 0; aHits++;
     } else {
       miss.push(w);
       if(miss.length >= 3){
         const r = resync(p, miss.slice(-3));
         if(r){
           if(commit){ r.forEach(i => W[i].hit = true); for(let k = r[0]; k <= r[2]; k++) W[k].said = true; }
-          p = r[2] + 1; miss.length = 0;
+          p = r[2] + 1; miss.length = 0; aHits += 3;
         }
       }
     }
@@ -392,13 +413,66 @@ function onFinal(text){
   spoken.push(...words);
   transcript += (transcript ? " " : "") + text.trim();
   const before = P;
+  const sentBefore = W[Math.min(P, W.length - 1)].s;
   P = advance(P, words, true);
   tentP = P;
   maxP = Math.max(maxP, P);
   if(P !== before) lastMove = now();
+  const content = words.filter(isContent).length;
+  if(content >= 3 && aHits / content < 0.4) markError(text, sentBefore);
   render();
   if(P >= W.length - 2) setTimeout(() => { if(running) finish(); }, 1500);
 }
+
+/* ---------- Erros e voltar ---------- */
+let errCount = {}, fbTimer = 0;
+function markError(text, s){
+  errCount[s] = (errCount[s] || 0) + 1;
+  const el = SENT[s].el;
+  el.classList.remove("err"); void el.offsetWidth; el.classList.add("err", "had-err");
+  setTimeout(() => el.classList.remove("err"), 1600);
+  try{ navigator.vibrate && navigator.vibrate(150); }catch(_){}
+  const pos = Math.max(0, Math.min(P, W.length - 1) - SENT[s].start);
+  const ws = SENT[s].text.split(/\s+/);
+  const right = ws.slice(Math.min(pos, ws.length - 1), Math.min(pos, ws.length - 1) + 10).join(" ");
+  const many = errCount[s] >= 2;
+  const fb = $("fb"); fb.textContent = "";
+  const box = document.createElement("div");
+  const t = document.createElement("div"); t.className = "t";
+  t.textContent = many ? `✗ Errou este parágrafo ${errCount[s]} vezes` : "✗ Isso não bate com o roteiro";
+  const sd = document.createElement("div"); sd.className = "said"; sd.textContent = "Você disse: “" + text.trim().slice(0, 80) + "”";
+  const rt = document.createElement("div"); rt.className = "right";
+  const sm = document.createElement("small"); sm.textContent = "O certo é";
+  rt.append(sm, document.createTextNode(right + (ws.length > pos + 10 ? " …" : "")));
+  box.append(t, sd, rt);
+  if(many){
+    const b = document.createElement("div"); b.className = "btns";
+    const b1 = document.createElement("button"); b1.type = "button"; b1.textContent = "↺ Recomeçar o parágrafo"; b1.onclick = () => rewind(false);
+    const b2 = document.createElement("button"); b2.type = "button"; b2.textContent = "⤺ Voltar ao anterior"; b2.onclick = () => rewind(true);
+    const b3 = document.createElement("button"); b3.type = "button"; b3.className = "alt"; b3.textContent = "Seguir"; b3.onclick = hideFb;
+    b.append(b1, b2, b3); box.appendChild(b);
+  }
+  fb.appendChild(box); fb.hidden = false;
+  clearTimeout(fbTimer);
+  if(!many) fbTimer = setTimeout(hideFb, 5000);
+}
+function hideFb(){ clearTimeout(fbTimer); $("fb").hidden = true; }
+function rewind(toPrev){
+  const pos = Math.min(Math.max(P, tentP), W.length - 1);
+  let s = W[pos].s;
+  if(toPrev) s = Math.max(0, s - 1);
+  const st = SENT[s].start;
+  for(let k = st; k < W.length; k++){ W[k].said = false; W[k].hit = false; }
+  P = tentP = st; maxP = st; missBuf = [];
+  if(st < startWord) startWord = st;
+  lastSentShown = -1; lastMove = now();
+  hideFb();
+  try{ if(running && rec) rec.abort(); }catch(_){}
+  heard("Voltei para: ", SENT[s].text.slice(0, 60) + "…");
+  render();
+}
+$("rwSame").addEventListener("click", () => rewind(false));
+$("rwPrev").addEventListener("click", () => rewind(true));
 function onInterim(text){
   const t = advance(P, norm(text), false);
   if(t !== tentP){ if(t > tentP) lastMove = now(); tentP = t; render(); }
@@ -443,7 +517,7 @@ function tick(){
   const min = ms / 60000;
   $("stWpm").textContent = min > 0.25 ? Math.round(spoken.length / min) + "/min" : "–";
   const stall = mode === "texto" ? 1e9 : mode === "chaves" ? 5000 : 8000;
-  const show = running && now() - lastMove > stall && P < W.length;
+  const show = running && now() - lastMove > stall && P < W.length && $("fb").hidden;
   if(show){
     const pos = Math.max(P, tentP);
     const s = SENT[W[Math.min(pos, W.length-1)].s];
@@ -514,7 +588,7 @@ async function start(){
   document.body.classList.add("listening");
   $("intro").hidden = true; $("unsupported").hidden = true;
   $("micBtn").textContent = "❚❚ Pausar"; $("micBtn").classList.add("on");
-  $("endBtn").hidden = false; $("startSel").hidden = true;
+  $("endBtn").hidden = false; $("startSel").hidden = true; $("tools").hidden = false;
   heard("Ligando o microfone…");
   try{ rec.start(); }catch(err){ heard("Não consegui ligar o microfone: ", String(err.message || err)); }
   try{ wakeLock = await navigator.wakeLock?.request("screen"); }catch(_){}
@@ -595,6 +669,14 @@ function finish(){
       const i = document.createElement("i"); i.textContent = c.ok ? "✓" : "✗";
       const s = document.createElement("span"); s.textContent = c.t; li.append(i, s); ul.appendChild(li); });
   }
+  const errs = Object.keys(errCount).map(Number).sort((a, b) => a - b);
+  if(errs.length){
+    add("h2", null, "Onde você tropeçou");
+    const box = add("div", "skips");
+    errs.forEach(i => { const p = document.createElement("p"); const sm = document.createElement("small");
+      sm.textContent = `${secLabel(SECS[SENT[i].sl])} · errou ${errCount[i]} ${errCount[i] > 1 ? "vezes" : "vez"}`;
+      p.append(sm, document.createTextNode(SENT[i].text)); box.appendChild(p); });
+  }
   if(skipped.length){
     add("h2", null, "Frases que ficaram de fora");
     const box = add("div", "skips");
@@ -624,7 +706,8 @@ function finish(){
 }
 function reset(){
   W.forEach(w => { w.said = false; w.hit = false; });
-  SENT.forEach(s => s.el.classList.remove("skip"));
+  SENT.forEach(s => s.el.classList.remove("skip", "err", "had-err"));
+  errCount = {}; hideFb(); $("tools").hidden = true; $("heard").hidden = true;
   P = tentP = maxP = startWord = SECS[+$("startSel").value].start;
   running = false; everStarted = false; finished = false;
   elapsedBase = 0; spoken = []; transcript = ""; slideEnter = {}; missBuf = []; lastSentShown = -1;
